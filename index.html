@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Making Skins - Full Guide</title>
+<meta name="description" content="How to turn a rigged Blender character into a Multivoid player skin for Voices of the Void: fit it to Kel's skeleton, bake one texture, cook it in Unreal 4.27 and pack it with repak.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<details class="menu">
+  <summary>Contents</summary>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#need">What you need</a></li>
+    <li><a href="#skeleton">Get Kel's skeleton</a></li>
+    <li><a href="#fit">Fit and rig in Blender</a></li>
+    <li><a href="#texture">One texture</a></li>
+    <li><a href="#export">Export FBX</a></li>
+    <li><a href="#unreal">UE import and cook</a></li>
+    <li><a href="#pak">Pak</a></li>
+    <li><a href="#try">Try it in game</a></li>
+    <li><a href="#trouble">Troubleshooting</a></li>
+    <li><a href="#advanced">Advanced notes</a></li>
+    <li><a href="#commissions">Commissions</a></li>
+  </ol>
+</details>
+
+<div class="page">
+
+<nav class="toc" aria-label="Contents">
+  <a class="site" href="#top">Making Skins</a>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#need">What you need</a></li>
+    <li><a href="#skeleton">Get Kel's skeleton</a></li>
+    <li><a href="#fit">Fit and rig in Blender</a>
+      <ol>
+        <li><a href="#cleanup">Clean up the model</a></li>
+        <li><a href="#groups">Vertex groups</a></li>
+        <li><a href="#coat">Coats and skirts</a></li>
+        <li><a href="#fitrig">Fit to Kel's joints</a></li>
+      </ol>
+    </li>
+    <li><a href="#texture">One texture</a></li>
+    <li><a href="#export">Export FBX</a></li>
+    <li><a href="#unreal">UE import and cook</a>
+      <ol>
+        <li><a href="#project">Project</a></li>
+        <li><a href="#standins">Stand-ins</a></li>
+        <li><a href="#import">Import the skin</a></li>
+        <li><a href="#cook">Cook</a></li>
+      </ol>
+    </li>
+    <li><a href="#pak">Pak</a></li>
+    <li><a href="#try">Try it in game</a></li>
+    <li><a href="#trouble">Troubleshooting</a></li>
+    <li><a href="#advanced">Advanced notes</a></li>
+    <li><a href="#commissions">Commissions</a></li>
+  </ol>
+</nav>
+
+<main id="top">
+
+<header class="top">
+  <h1>Making Skins - Full Guide</h1>
+  <p class="by">by forder. A player skin for Multivoid, the Voices of the Void multiplayer mod, made by hand from a Blender model.</p>
+</header>
+
+<p>This is the route I use for skin commissions, done by hand with free tools. I walked a test model through every step below and checked the finished pak against Multivoid's own skins. Where something can only be checked in game, I say so.</p>
+
+<p>Tested with Blender 5.2, Unreal Engine 4.27.2, repak 0.2.3, Multivoid 0.9.208 and unreal_shimloader 1.1.7. Multivoid 0.9.292 came out after that and loads skins the same way: same asset paths, same name rules, same folders. Other versions may have menus in different places.</p>
+
+<!-- ===================================================================== -->
+<h2 id="overview">Overview</h2>
+
+<p>A Multivoid skin is one <code>.pak</code> file with four files in it: a skeletal mesh and a texture, each cooked by Unreal Engine 4.27. The mesh has to use Kel's skeleton, because the game plays Kel's animations on it. So most of the work is in Blender, making your model fit that skeleton.</p>
+
+<ol class="pipeline" aria-label="Pipeline">
+  <li><b>Blender</b> fit the model to Kel's skeleton, bake one texture <span>→ FBX + PNG</span></li>
+  <li><b>Unreal 4.27</b> import, set slots, cook <span>→ 4 cooked files</span></li>
+  <li><b>repak</b> pack the cooked files <span>→ MySkin.pak</span></li>
+  <li><b>Multivoid</b> pak + tile in a mod folder <span>→ F1 → Skins</span></li>
+</ol>
+
+<p>In the end your model sits on Kel's joints, so it has Kel's proportions. Arms, legs and neck get Kel's lengths. Faces, hair, clothes and the overall look stay yours.</p>
+
+<h3 id="permission">Use models you're allowed to use</h3>
+<p>Only use a model you made yourself or one whose license lets you modify and redistribute it. Read the license on the page you got it from. If you publish the skin, credit the model's author by name and link back to where the model came from. When in doubt, ask the author first.</p>
+
+<h3 id="name">Pick a skin name</h3>
+<p>The skin's name is the pak's file name. It also ends up in three other file names, so pick it now and keep it. I use <code>MySkin</code> in every example here. Swap it for yours everywhere you see it.</p>
+<ul>
+  <li>Letters, digits, <code>_</code> and <code>-</code> only, 48 characters at most. I stick to letters, digits and <code>_</code>.</li>
+  <li>Make it unique. A name that's already used by a built-in skin, or <code>dr_kel</code>, is skipped. Also stay away from <code>scientists</code> and the four starter skins Multivoid ships in it (<code>walter_v1sc</code>, <code>sci_v1sc</code>, <code>rvi_scientist_v1sc</code>, <code>luther_v1sc</code>). A pak called <code>scientists</code> is read as Multivoid's bundle, and a duplicate name only shows one of the two skins.</li>
+  <li>Case matters in the file names. Type it the same way every time.</li>
+</ul>
+
+<!-- ===================================================================== -->
+<h2 id="need">What you need</h2>
+
+<ul>
+  <li><b>Blender</b>, 5.2 or close to it: <a href="https://www.blender.org/download/">blender.org/download</a>. You should know Edit Mode, Pose Mode, vertex groups and Weight Paint. If you don't yet, go through the <a href="https://docs.blender.org/manual/en/latest/getting_started/index.html">Getting Started part of the Blender manual</a> first.</li>
+  <li><b>Unreal Engine 4.27</b>, from the Epic Games Launcher (<a href="https://www.unrealengine.com/download">unrealengine.com/download</a>): <span class="ui">Unreal Engine → Library → +</span> next to Engine Versions, pick 4.27, Install. It needs a lot of disk space. It has to be 4.27, because the game is built with it.</li>
+  <li><b>repak</b>, a small command-line pak tool: <a href="https://github.com/trumank/repak/releases">github.com/trumank/repak/releases</a>. Download the Windows zip (<code>x86_64-pc-windows-msvc</code>) and unzip <code>repak.exe</code>.</li>
+  <li><b>Kel's skeleton</b> as a Blender file: <a href="files/kel_armature.blend" download>kel_armature.blend</a>. Bones only, no mesh. More on it in the next section.</li>
+  <li><b>A rigged model</b> in Blender: a humanoid with an armature and weights. I use a Rigify-rigged model in the screenshots. Other rigs work the same way with different bone names.</li>
+  <li><b>The game with Multivoid</b> installed through Thunderstore Mod Manager, to try the result.</li>
+</ul>
+
+<p>Make a short working folder, for example <code>C:\Skins</code>. Unreal has trouble with long paths, so keep the project close to the drive root.</p>
+
+<!-- ===================================================================== -->
+<h2 id="skeleton">Get Kel's skeleton</h2>
+
+<p><a href="files/kel_armature.blend" download>kel_armature.blend</a> holds one armature object called <code>rootKerfur</code> with Kel's 100 bones, at the exact positions and rotations of the game's skeleton. It has two bone collections:</p>
+<ul>
+  <li><b>Deform (weight these)</b>, 41 bones: <code>pelvis</code>, <code>belly</code>, <code>chest</code>, <code>neck</code>, <code>head</code>, and per side <code>thigh</code>, <code>lowerLeg</code>, <code>foot</code>, <code>upperarm</code>, <code>forearm</code>, <code>hand</code>, plus the fingers. Sides end in <code>_L</code> and <code>_R</code>.</li>
+  <li><b>Helpers (leave unweighted)</b>, 59 bones: IK targets, poles, wheels and end bones. The game needs them in the skeleton, but nothing should be weighted to them.</li>
+</ul>
+<p>Fingers are <code>finger_N_M_S</code>: N is the finger (1 thumb, 2 index, 3 middle, 4 ring and pinky together), M is the segment from 1 to 3, S is the side. So <code>finger_2_1_L</code> is the first segment of the left index finger.</p>
+
+<div class="warn">
+  <p>Don't rename, add, delete, move or rotate any bone in <code>rootKerfur</code>. Don't apply transforms to it. The cooked skin is checked against the game's skeleton bone by bone, and a skin with a different skeleton won't animate right.</p>
+</div>
+
+<p>You don't need FModel or the game files for this. If you'd rather pull the skeleton out of the game yourself, you can, but I didn't use that route for this guide and can't promise it gives the same bone rotations.</p>
+
+<!-- ===================================================================== -->
+<h2 id="fit">Fit and rig in Blender</h2>
+
+<p>Save a copy of your model's .blend and work on the copy. Some of these steps are destructive.</p>
+
+<figure>
+  <img src="img/model.webp" width="580" height="650" alt="The test model in Blender's Material Preview: a woman in a long lab coat, standing in A-pose." loading="lazy">
+  <figcaption>The test model before any changes. Model in the screenshots: <a href="https://open3dlab.com/project/6311740b-135c-4414-b872-16caee1077bf/">Dr. Kel and Fem Kel by Gigaroni</a>.</figcaption>
+</figure>
+
+<h3 id="cleanup">1. Clean up the model</h3>
+
+<p>The goal is one mesh object with one UV map, no shape keys, no modifiers, at the world origin, facing −Y. That's how a Blender character faces by default: in Front view (<kbd>Numpad 1</kbd>) you see its face.</p>
+
+<ol>
+  <li>Delete everything that isn't the character: other characters, bone widget shapes, cameras, lights, hidden alternative outfits.</li>
+  <li>Delete parts that rely on transparency, like eyelash cards or alpha hair cards. The skin texture has no alpha channel, so they'd show as solid rectangles.</li>
+  <li>Select the model's armature. In <span class="ui">Object Data Properties → Pose</span>, click <span class="ui">Rest Position</span>. If the armature isn't at the origin, press <kbd>Alt</kbd>+<kbd>G</kbd>. The feet should stand on the grid floor.</li>
+  <li>For every mesh object:
+    <ul>
+      <li>If it has shape keys: <span class="ui">Object Data Properties → Shape Keys</span>, the <span class="ui">v</span> menu, <span class="ui">Apply All</span>.</li>
+      <li>In <span class="ui">Modifier Properties</span>, apply every modifier (dropdown arrow → <span class="ui">Apply</span>, or hover and <kbd>Ctrl</kbd>+<kbd>A</kbd>) except Armature. Delete the Armature modifier.</li>
+      <li>Pieces that are parented to a bone instead of weighted (hair, hats and eyes often are) need a vertex group. In Edit Mode select all, add a group in <span class="ui">Object Data Properties → Vertex Groups</span>, name it after the Kel bone it should follow (<code>head</code> for anything on the head), and click <span class="ui">Assign</span> with Weight 1.000.</li>
+    </ul>
+  </li>
+  <li>Select all the mesh objects. <kbd>Alt</kbd>+<kbd>P</kbd> → <span class="ui">Clear and Keep Transformation</span>. Then <kbd>Ctrl</kbd>+<kbd>A</kbd> → <span class="ui">All Transforms</span>.</li>
+  <li>On every mesh, open <span class="ui">Object Data Properties → UV Maps</span>. Keep only the UV map with the camera icon lit (that's the one the materials render with), delete the others, and rename the one you kept to <code>UVMap</code> on every object. Joining merges UV maps by name, so they all have to match.</li>
+  <li>Select all the meshes, with the main body as the active one (click it last). <kbd>Ctrl</kbd>+<kbd>J</kbd>. Rename the result, for example <code>MySkin_mesh</code>.</li>
+</ol>
+
+<p>Keep the model's old armature for now. You'll use its joints as reference in step 4.</p>
+
+<figure>
+  <img src="img/cleaned.webp" width="1352" height="672" alt="Blender viewport in Solid shading with the model joined into one object; the Object Data Properties tab is open on the right." loading="lazy">
+  <figcaption>After cleanup: one object, one UV map, no modifiers.</figcaption>
+</figure>
+
+<h3 id="groups">2. Vertex groups to Kel's bone names</h3>
+
+<p>Every vertex group on the mesh has to be named after one of Kel's 41 deform bones. Your rig probably has more bones than Kel (twist bones, shoulders, toes, breast bones), so several of your groups get added together into one Kel group.</p>
+
+<p>For a Rigify rig, this is the mapping I used:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Kel group</th><th>Rigify groups added together</th></tr></thead>
+  <tbody>
+    <tr><td><code>pelvis</code></td><td><code>DEF-spine</code>, <code>DEF-spine.001</code>, <code>DEF-pelvis.L</code>, <code>DEF-pelvis.R</code></td></tr>
+    <tr><td><code>belly</code></td><td><code>DEF-spine.002</code></td></tr>
+    <tr><td><code>chest</code></td><td><code>DEF-spine.003</code>, <code>DEF-breast.L/R</code>, <code>DEF-shoulder.L/R</code></td></tr>
+    <tr><td><code>neck</code></td><td><code>DEF-spine.004</code>, <code>DEF-spine.005</code> (in Rigify both are neck bones)</td></tr>
+    <tr><td><code>head</code></td><td><code>DEF-spine.006</code>, plus the <code>head</code> group from cleanup</td></tr>
+    <tr><td><code>thigh_L</code></td><td><code>DEF-thigh.L</code>, <code>DEF-thigh.L.001</code></td></tr>
+    <tr><td><code>lowerLeg_L</code></td><td><code>DEF-shin.L</code>, <code>DEF-shin.L.001</code></td></tr>
+    <tr><td><code>foot_L</code></td><td><code>DEF-foot.L</code>, <code>DEF-toe.L</code></td></tr>
+    <tr><td><code>upperarm_L</code></td><td><code>DEF-upper_arm.L</code>, <code>DEF-upper_arm.L.001</code></td></tr>
+    <tr><td><code>forearm_L</code></td><td><code>DEF-forearm.L</code>, <code>DEF-forearm.L.001</code></td></tr>
+    <tr><td><code>hand_L</code></td><td><code>DEF-hand.L</code>, <code>DEF-palm.01.L</code> to <code>DEF-palm.04.L</code></td></tr>
+    <tr><td><code>finger_1_M_L</code></td><td><code>DEF-thumb.0M.L</code></td></tr>
+    <tr><td><code>finger_2_M_L</code></td><td><code>DEF-f_index.0M.L</code></td></tr>
+    <tr><td><code>finger_3_M_L</code></td><td><code>DEF-f_middle.0M.L</code></td></tr>
+    <tr><td><code>finger_4_M_L</code></td><td><code>DEF-f_ring.0M.L</code>, <code>DEF-f_pinky.0M.L</code></td></tr>
+  </tbody>
+</table>
+</div>
+<p>Same for the right side with <code>_R</code> and <code>.R</code>. M is 1, 2 or 3. Any other rig works the same way: each group goes to the Kel bone of the same body part. Twist bones go into their main bone, shoulder or clavicle into <code>chest</code>, toes into <code>foot</code>, the pinky into the ring finger.</p>
+
+<h4>Add two groups together</h4>
+<ol>
+  <li>Select the mesh. <span class="ui">Add Modifier → Edit → Vertex Weight Mix</span>.</li>
+  <li><span class="ui">Vertex Group A</span>: the group you keep. <span class="ui">Vertex Group B</span>: the group you fold into it.</li>
+  <li><span class="ui">Vertex Set</span>: <span class="ui">VGroup A or B</span>. <span class="ui">Mix Mode</span>: <span class="ui">Add</span>.</li>
+  <li>Apply the modifier, then delete group B.</li>
+</ol>
+<p>Repeat until each Kel group is a single group, then double-click each kept group and rename it to the Kel name.</p>
+
+<h4>Tidy the weights</h4>
+<ol>
+  <li>Click the lock icon on all 41 Kel groups. In the Vertex Groups <span class="ui">v</span> menu, click <span class="ui">Delete All Unlocked Groups</span>. That removes every group the game doesn't know. Then <span class="ui">v → Unlock All</span>.</li>
+  <li>Switch to Weight Paint mode. <span class="ui">Weights → Normalize All</span> (Lock Active off). Then <span class="ui">Weights → Clean</span> with Subset All Groups and Limit 0.</li>
+  <li>Edit Mode, deselect all, <span class="ui">Select → Select All by Trait → Ungrouped Vertices</span>. If anything gets selected, assign it to the group of the body part it belongs to. Every vertex needs a weight.</li>
+  <li>Lock the face to <code>head</code>. The jaw, chin and lip groups were deleted with the unknown groups, so the lower face is left with only neck and chest weight. In game Kel's neck and chest are longer than yours and they pull the jaw down into a long chin. To fix it: Edit Mode, deselect all, select the skin material and click <span class="ui">Select</span>. Side view (<kbd>Numpad 3</kbd>), X-ray on, and <kbd>Ctrl</kbd>+drag a box over everything below the bottom of the chin to deselect it. In Vertex Groups, select <code>head</code>, Weight 1.0, <span class="ui">Assign</span>. Then select <code>neck</code> and click <span class="ui">Remove</span>, and the same for <code>chest</code>. Hair, hat and glasses are usually already <code>head</code>.</li>
+  <li>That leaves a hard edge under the chin, which tears when the head turns. Keep the selection, <span class="ui">Select → Select More/Less → More</span> four times, switch to Weight Paint with vertex selection masking on and use <span class="ui">Weights → Smooth</span> with Subset All Groups, Factor 0.5, Iterations 10.</li>
+</ol>
+<p>Do the coat step below now if your model has one. After that, finish with <span class="ui">Weights → Limit Total</span> (Limit 4), <span class="ui">Normalize All</span> again and <span class="ui">Clean</span> again.</p>
+
+<h4>Check the sleeves</h4>
+<p>In Weight Paint, look at <code>pelvis</code>, <code>belly</code> and <code>chest</code> one by one. The sleeves should be blue (zero) on all three. If a sleeve has torso weight, it stays behind when the arm moves and the hand ends up inside the coat.</p>
+
+<figure>
+  <img src="img/groups.webp" width="1352" height="672" alt="Weight Paint view of the pelvis group from the front: red around the hips, blue on the arms and sleeves; the vertex group list shows Kel names." loading="lazy">
+  <figcaption>The <code>pelvis</code> group after merging. The sleeves are blue, which is what you want.</figcaption>
+</figure>
+
+<h3 id="coat">3. Coats and skirts</h3>
+
+<p>A long coat weighted only to the legs splits down the middle when the legs move apart. I move the bottom of the coat partly onto <code>pelvis</code> so it swings with the hips and only follows the legs a little.</p>
+<ol>
+  <li>Edit Mode, deselect all. In <span class="ui">Material Properties</span>, select the coat's material and click <span class="ui">Select</span>.</li>
+  <li>Front view (<kbd>Numpad 1</kbd>), X-ray on (<kbd>Alt</kbd>+<kbd>Z</kbd>). With the Select Box tool, <kbd>Ctrl</kbd>+drag over everything above the crotch to deselect it. Only the hem below the hips stays selected.</li>
+  <li>In Vertex Groups, select <code>pelvis</code>, set Weight to 0.7 and click <span class="ui">Assign</span>.</li>
+  <li>Switch to Weight Paint with vertex selection masking on, so only the hem is affected. Select <code>thigh_L</code>, <span class="ui">Weights → Levels</span>, Subset Active Group, Offset 0, Gain 0.3. Same for <code>thigh_R</code>.</li>
+  <li>Back to the <a href="#groups">tidy steps</a>: Limit Total 4, Normalize All, Clean.</li>
+</ol>
+<p>Body parts that are always hidden under the clothes can poke through when the cloth moves. You can delete them: Edit Mode, select the hidden faces, <kbd>X</kbd> → <span class="ui">Faces</span>. If you do, do it before the texture step so the freed space goes to visible parts. I didn't need this on the test model.</p>
+
+<h3 id="fitrig">4. Fit the model to Kel's joints</h3>
+
+<p>Here the model gets Kel's proportions. You copy Kel's armature, move the copy's joints onto your model's joints, then let constraints pull every joint back to Kel's position. An Armature modifier on the mesh carries the mesh along.</p>
+
+<ol>
+  <li><span class="ui">File → Append</span>, open <code>kel_armature.blend</code>, go into <span class="ui">Object</span> and append <code>rootKerfur</code>.</li>
+  <li>Select <code>rootKerfur</code>, <kbd>Shift</kbd>+<kbd>D</kbd>, right-click to cancel the move. Rename the copy to <code>fit</code>.</li>
+  <li>In <code>fit</code>'s <span class="ui">Object Data Properties → Bone Collections</span>, hide <span class="ui">Helpers</span>. In <span class="ui">Viewport Display</span>, turn on <span class="ui">In Front</span>.</li>
+  <li>Select the model's old armature, then <code>fit</code>, and press <kbd>Tab</kbd>. Both are now in Edit Mode.</li>
+  <li>Move each joint of <code>fit</code> onto the matching joint of your model:
+    <ul>
+      <li>Click the model's joint, <kbd>Shift</kbd>+<kbd>S</kbd> → <span class="ui">Cursor to Selected</span>.</li>
+      <li>Click <code>fit</code>'s joint, <kbd>Shift</kbd>+<kbd>S</kbd> → <span class="ui">Selection to Cursor</span>.</li>
+    </ul>
+    These are the 17 bones to move, head and tail:
+  </li>
+</ol>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th><code>fit</code> bone</th><th>Head goes to</th><th>Tail goes to</th><th>Rigify joints</th></tr></thead>
+  <tbody>
+    <tr><td><code>pelvis</code></td><td>waist</td><td>bottom of the spine (points down)</td><td>head of <code>DEF-spine.002</code> → head of <code>DEF-spine</code></td></tr>
+    <tr><td><code>belly</code></td><td>waist</td><td>start of the chest</td><td><code>DEF-spine.002</code> → <code>DEF-spine.003</code></td></tr>
+    <tr><td><code>chest</code></td><td>start of the chest</td><td>base of the neck</td><td><code>DEF-spine.003</code> → <code>DEF-spine.005</code></td></tr>
+    <tr><td><code>neck</code></td><td>base of the neck</td><td>base of the head</td><td><code>DEF-spine.005</code> → <code>DEF-spine.006</code></td></tr>
+    <tr><td><code>head</code></td><td>base of the head</td><td>top of the head</td><td>head → tail of <code>DEF-spine.006</code></td></tr>
+    <tr><td><code>upperarm_L</code></td><td>shoulder</td><td>elbow</td><td><code>DEF-upper_arm.L</code> → <code>DEF-forearm.L</code></td></tr>
+    <tr><td><code>forearm_L</code></td><td>elbow</td><td>wrist</td><td><code>DEF-forearm.L</code> → <code>DEF-hand.L</code></td></tr>
+    <tr><td><code>hand_L</code></td><td>wrist</td><td>end of the hand bone</td><td>head → tail of <code>DEF-hand.L</code></td></tr>
+    <tr><td><code>thigh_L</code></td><td>hip joint</td><td>knee</td><td><code>DEF-thigh.L</code> → <code>DEF-shin.L</code></td></tr>
+    <tr><td><code>lowerLeg_L</code></td><td>knee</td><td>ankle</td><td><code>DEF-shin.L</code> → <code>DEF-foot.L</code></td></tr>
+    <tr><td><code>foot_L</code></td><td>ankle</td><td>end of the foot bone</td><td>head → tail of <code>DEF-foot.L</code></td></tr>
+  </tbody>
+</table>
+</div>
+<p>Same for the right side. In the Rigify column, "A → B" means the heads of A and B unless it says tail. <code>pelvis</code> and <code>belly</code> start at the same point but aren't connected, so move both heads. Leave the finger bones where they are; the fingers follow the hand.</p>
+
+<figure>
+  <img src="img/fit-edit.webp" width="870" height="662" alt="Front view in X-ray: the fit armature in Edit Mode with its spine, arm and leg joints sitting on the model's joints." loading="lazy">
+  <figcaption><code>fit</code> in Edit Mode with its joints moved onto the model.</figcaption>
+</figure>
+
+<ol start="6">
+  <li>Still in Edit Mode on <code>fit</code>, select all bones (<kbd>A</kbd>). In <span class="ui">Bone Properties → Relations</span>, set <span class="ui">Inherit Scale</span> to <span class="ui">None</span> while holding <kbd>Alt</kbd>, so it applies to every selected bone. If you skip this, the stretch in the next step scales the child bones too and the arms come out stretched.</li>
+  <li>Switch to Pose Mode. On each of the 17 bones, add a constraint in <span class="ui">Bone Constraint Properties → Add Bone Constraint → Copy Location</span>, with Target <code>rootKerfur</code> and Bone set to the same bone name.</li>
+  <li>11 of them also get <span class="ui">Add Bone Constraint → Inverse Kinematics</span>, below the Copy Location. Target <code>rootKerfur</code>, Bone set to the next bone in the chain, <span class="ui">Chain Length</span> 1, <span class="ui">Stretch</span> on. Then in <span class="ui">Bone Properties → Inverse Kinematics</span>, set <span class="ui">IK Stretch</span> to 1.
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Bone</th><th>IK Bone</th></tr></thead>
+      <tbody>
+        <tr><td><code>belly</code></td><td><code>chest</code></td></tr>
+        <tr><td><code>chest</code></td><td><code>neck</code></td></tr>
+        <tr><td><code>neck</code></td><td><code>head</code></td></tr>
+        <tr><td><code>upperarm_L</code></td><td><code>forearm_L</code></td></tr>
+        <tr><td><code>forearm_L</code></td><td><code>hand_L</code></td></tr>
+        <tr><td><code>thigh_L</code></td><td><code>lowerLeg_L</code></td></tr>
+        <tr><td><code>lowerLeg_L</code></td><td><code>foot_L</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+    And the same four for <code>_R</code>. <code>pelvis</code>, <code>head</code>, <code>hand_L/R</code> and <code>foot_L/R</code> only get Copy Location.
+  </li>
+</ol>
+<p><code>fit</code> now looks exactly like <code>rootKerfur</code> again. Copy Location puts each joint on Kel's joint, and the IK stretches each bone so its tail reaches the next one.</p>
+
+<figure>
+  <img src="img/constraints.webp" width="1352" height="672" alt="Pose Mode with forearm_L selected; the Bone Constraint tab shows a Copy Location constraint and an Inverse Kinematics constraint, both targeting rootKerfur." loading="lazy">
+  <figcaption>The two constraints on <code>forearm_L</code>.</figcaption>
+</figure>
+
+<ol start="9">
+  <li>Select the mesh. <span class="ui">Add Modifier → Deform → Armature</span>, Object <code>fit</code>. The mesh jumps into Kel's proportions.</li>
+  <li>The model's ankles are now at Kel's ankle height, which is low, so the soles sink into the floor. In Pose Mode on <code>fit</code>, select <code>foot_L</code> and <code>foot_R</code>, set the Pivot Point (<kbd>.</kbd>) to <span class="ui">Individual Origins</span>, press <kbd>S</kbd> <kbd>Z</kbd> and type a factor. Adjust until the soles sit about 2 cm below the floor, where Kel's own soles are. On my test model the factor was 0.74.</li>
+  <li>Select the mesh, and in the Armature modifier's dropdown click <span class="ui">Apply</span>.</li>
+  <li>Delete <code>fit</code> and the model's old armature.</li>
+  <li>Select the mesh, then <kbd>Shift</kbd>+click <code>rootKerfur</code> so it's active. <kbd>Ctrl</kbd>+<kbd>P</kbd> → <span class="ui">Armature Deform</span>. Not "With Automatic Weights": you already have the weights.</li>
+</ol>
+<p>To check it, go to Pose Mode on <code>rootKerfur</code>, rotate a few bones and watch the mesh follow. Then select all bones, <kbd>Alt</kbd>+<kbd>R</kbd>, <kbd>Alt</kbd>+<kbd>G</kbd>, <kbd>Alt</kbd>+<kbd>S</kbd> to clear the pose before you continue.</p>
+
+<figure>
+  <img src="img/fitted.webp" width="870" height="662" alt="The fitted model in Solid view with rootKerfur drawn in front; arms and legs now match Kel's skeleton." loading="lazy">
+  <figcaption>The model on <code>rootKerfur</code>. The arms and neck are longer than before; those are Kel's lengths.</figcaption>
+</figure>
+
+<!-- ===================================================================== -->
+<h2 id="texture">One texture</h2>
+
+<p>Multivoid sets one texture on the skin: the <code>tex</code> parameter of the first material slot. Everything your model shows has to be in that one image, on one UV map. Your model probably has several materials and textures, so you bake them all into one 2048×2048 image.</p>
+
+<ol>
+  <li><span class="ui">Object Data Properties → UV Maps</span>, click <span class="ui">+</span>, name it <code>atlas</code>. Click it so it's selected, but leave the camera icon on the original map. The materials keep reading the original; the bake writes into <code>atlas</code>.</li>
+  <li>Edit Mode, select all. In the UV Editor: <span class="ui">UV → Average Islands Scale</span>, then <span class="ui">UV → Pack Islands</span> with Margin 0.003.</li>
+  <li>In the Image Editor, <span class="ui">Image → New</span>. Name <code>tex_MySkin</code>, 2048 × 2048, Alpha off.</li>
+  <li>In every material on the mesh, open the Shader Editor and <span class="ui">Add → Texture → Image Texture</span>. Pick <code>tex_MySkin</code>. Don't connect it to anything. Click it so it's the active node (white outline). The bake writes into the active Image Texture node of each material.</li>
+  <li><span class="ui">Render Properties</span>: Render Engine <span class="ui">Cycles</span>. Open the <span class="ui">Bake</span> panel:
+    <ul>
+      <li>Bake Type: <span class="ui">Diffuse</span></li>
+      <li>Influence → Contributions: <span class="ui">Direct</span> off, <span class="ui">Indirect</span> off, <span class="ui">Color</span> on</li>
+      <li>Output: Target <span class="ui">Image Textures</span>, <span class="ui">Clear Image</span> on, Margin 16 px</li>
+    </ul>
+    Select the mesh and click <span class="ui">Bake</span>.
+  </li>
+  <li>In the Image Editor, <span class="ui">Image → Save As</span>, <code>tex_MySkin.png</code>. The file name becomes the texture's name in Unreal, so it has to be <code>tex_</code> plus your skin name.</li>
+</ol>
+
+<figure>
+  <img src="img/atlas.webp" width="1352" height="692" alt="Left: the model in Solid view showing the baked texture. Right: the 2048 image with all UV islands packed into one square." loading="lazy">
+  <figcaption>The baked image on the right, the model drawn with it on the left.</figcaption>
+</figure>
+
+<p>Now clean up so the mesh has one UV map and one material:</p>
+<ol>
+  <li>In UV Maps, delete the original map. <code>atlas</code> is the only one left.</li>
+  <li>Edit Mode, select all. In <span class="ui">Material Properties</span>, select the first slot and click <span class="ui">Assign</span>.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>T</kbd> to triangulate.</li>
+  <li>Object Mode. In the material list's <span class="ui">v</span> menu, <span class="ui">Remove Unused Slots</span>. One slot is left.</li>
+  <li>Rename that material to <code>KelSkinNew</code>. Unreal uses it as the first slot's name.</li>
+</ol>
+
+<!-- ===================================================================== -->
+<h2 id="export">Export FBX</h2>
+
+<p>The scene should hold only <code>rootKerfur</code> and your mesh. Delete anything else. Check <span class="ui">Scene Properties → Units</span>: Unit System <span class="ui">Metric</span>, Unit Scale 1.000. Don't add an action or keyframes to <code>rootKerfur</code>.</p>
+
+<figure class="side">
+  <img src="img/export-include.webp" width="238" height="482" alt="The Include and Transform panels of Blender's FBX export dialog with the settings from the table." loading="lazy">
+  <figcaption>Include and Transform.</figcaption>
+</figure>
+
+<p><span class="ui">File → Export → FBX (.fbx)</span>. Name the file <code>kerfurOmega_KelSkin.fbx</code>. That's the asset name the game looks for inside the pak, whatever the skin is called. Set these, and leave everything else at the default:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Panel</th><th>Setting</th></tr></thead>
+  <tbody>
+    <tr><td>(top)</td><td>Path Mode <span class="ui">Strip</span>, Batch Mode <span class="ui">Off</span></td></tr>
+    <tr><td>Include</td><td>Limit to: nothing ticked. Object Types: <span class="ui">Armature</span> and <span class="ui">Mesh</span> only. Custom Properties off</td></tr>
+    <tr><td>Transform</td><td>Scale 1.00, Apply Scalings <span class="ui">All Local</span>, Forward <span class="ui">-Z Forward</span>, Up <span class="ui">Y Up</span>, Apply Unit on, Use Space Transform on, Apply Transform off</td></tr>
+    <tr><td>Geometry</td><td>Smoothing <span class="ui">Face</span>, Apply Modifiers off, Tangent Space off</td></tr>
+    <tr><td>Armature</td><td>Primary Bone Axis <span class="ui">Y Axis</span>, Secondary Bone Axis <span class="ui">X Axis</span>, Armature FBXNode Type <span class="ui">Null</span>, Only Deform Bones off, Add Leaf Bones off</td></tr>
+    <tr><td>Animation</td><td>Baked Animation off</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Only Deform Bones has to stay off. The helper bones must be in the file, or the skeleton won't match Kel's. Same for Add Leaf Bones: it adds bones Kel doesn't have.</p>
+<p class="clear">Use <span class="ui">Operator Presets → +</span> at the top of the dialog to save these settings, so next time it's one click.</p>
+
+<!-- ===================================================================== -->
+<h2 id="unreal">UE import and cook</h2>
+
+<p>Unreal turns the FBX and the PNG into cooked game files. You need a project with a few placeholder assets at the paths the game uses. You set that up once and reuse it for every skin.</p>
+
+<h3 id="project">Make the project</h3>
+<ol>
+  <li>Start Unreal Engine 4.27 from the launcher. In the project browser pick <span class="ui">Games</span>, then <span class="ui">Blank</span>.</li>
+  <li><span class="ui">Blueprint</span>, <span class="ui">No Starter Content</span>. Folder <code>C:\Skins</code>, name <code>MySkins</code>. <span class="ui">Create Project</span>.</li>
+</ol>
+<p>No config changes are needed. I compared a blank project like this one against my own working project, and the cooked files came out byte for byte the same.</p>
+
+<h3 id="standins">Stand-ins (once per project)</h3>
+
+<p>The cooked mesh refers to the game's skeleton and three of the game's materials by path. They only need to exist in your project at the right paths with the right type. The game loads its own versions. In the Content Browser, make these folders under <code>Content</code>, with this exact spelling:</p>
+<pre><code>Content
+├── meshes
+│   ├── kerfurAnthro
+│   │   └── sk
+│   └── kel
+│       └── 4
+├── Mods
+│   └── VOTVCoop
+└── StandIn</code></pre>
+
+<h4>Skeleton</h4>
+<ol>
+  <li>Copy your <code>kerfurOmega_KelSkin.fbx</code> and rename the copy to <code>kerfurOmegaV1.fbx</code>.</li>
+  <li>Open <code>meshes/kerfurAnthro/sk</code>, click <span class="ui">Import</span> and pick the copy.</li>
+  <li>Use the same import settings as in <a href="#import">Import the skin</a> below, except <span class="ui">Skeleton</span>: leave it empty, so Unreal makes a new one.</li>
+</ol>
+<p>You get <code>kerfurOmegaV1_Skeleton</code>, the same name and path as the game's skeleton. Since your FBX has Kel's bones, this skeleton has them too.</p>
+
+<h4>Materials</h4>
+<ol>
+  <li>In <code>StandIn</code>, right-click → <span class="ui">Material</span>, name it <code>M_kel_standin</code>, open it.</li>
+  <li>Right-click in the graph, search <span class="ui">TextureSampleParameter2D</span>, add it. In Details, set <span class="ui">Parameter Name</span> to <code>tex</code>. Drag its RGB pin to <span class="ui">Base Color</span>. Save and close.</li>
+  <li>In <code>meshes/kel/4</code>, right-click → <span class="ui">Materials &amp; Textures → Material Instance</span>. Name it <code>inst_kel4_body</code>, open it, set <span class="ui">Parent</span> to <code>M_kel_standin</code>, save.</li>
+  <li>Same for <code>inst_kel4_clothes</code> and <code>inst_kel4_deco</code>.</li>
+</ol>
+
+<h3 id="import">Import the skin</h3>
+
+<p>Open <code>Mods/VOTVCoop</code>, click <span class="ui">Import</span>, pick <code>kerfurOmega_KelSkin.fbx</code>. In the FBX Import Options:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Section</th><th>Setting</th></tr></thead>
+  <tbody>
+    <tr><td>Mesh</td><td><span class="ui">Skeletal Mesh</span> on, <span class="ui">Import Mesh</span> on, Import Content Type <span class="ui">Geometry and Skinning Weights</span></td></tr>
+    <tr><td></td><td><span class="ui">Skeleton</span>: <code>kerfurOmegaV1_Skeleton</code> (empty only for the stand-in import)</td></tr>
+    <tr><td></td><td>Update Skeleton Reference Pose off, Import Morph Targets off</td></tr>
+    <tr><td></td><td>Click the small arrow under Mesh for the advanced options: <span class="ui">Use T0 As Ref Pose</span> on</td></tr>
+    <tr><td></td><td>Normal Import Method <span class="ui">Import Normals</span></td></tr>
+    <tr><td></td><td>Create Physics Asset off, Physics Asset <span class="ui">None</span></td></tr>
+    <tr><td>Animation</td><td>Import Animations off</td></tr>
+    <tr><td>Transform</td><td>all zero, Import Uniform Scale 1.0</td></tr>
+    <tr><td>Misc</td><td>Convert Scene on, Force Front XAxis off, Convert Scene Unit off</td></tr>
+    <tr><td>Material</td><td>Material Import Method <span class="ui">Do Not Create Material</span>, Import Textures off</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Don't skip <span class="ui">Use T0 As Ref Pose</span>. Without it, Unreal rebuilds the bind pose on its own and a few arm bones end up slightly rotated compared to Kel. With it, the pose matches Kel exactly.</p>
+<p>Click <span class="ui">Import</span>. The message log will show a warning about the bind pose ("relative matrices do not match", "Recreating bind pose succeeded"). That's expected with Blender FBX files and harmless with Use T0 As Ref Pose on.</p>
+
+<h4>Material slots</h4>
+<p>Unreal drops unused material slots on import, so the mesh comes in with one slot, <code>KelSkinNew</code>. Multivoid's own skins have three, so I add the other two here. Double-click the mesh to open it, and in <span class="ui">Asset Details → Material Slots</span>:</p>
+<ol>
+  <li>Slot 0 (<code>KelSkinNew</code>): pick <code>inst_kel4_body</code>.</li>
+  <li>Click <span class="ui">Add Material Slot</span> twice.</li>
+  <li>Slot 1: pick <code>inst_kel4_clothes</code>, set its slot name to <code>Material_022</code>.</li>
+  <li>Slot 2: pick <code>inst_kel4_deco</code>, set its slot name to <code>Material_021</code>.</li>
+  <li>Save.</li>
+</ol>
+<p>I haven't tested a skin with only one slot in game. With three it matches the existing skins exactly, so I keep three.</p>
+
+<h4>Texture</h4>
+<p>Import <code>tex_MySkin.png</code> into the same <code>Mods/VOTVCoop</code> folder. Open it and set:</p>
+<ul>
+  <li>Compression → Compression Settings: <span class="ui">Default (DXT1/5, BC1/3 on DX11)</span>. Under the arrow: <span class="ui">Compress Without Alpha</span> on.</li>
+  <li>Level Of Detail → Mip Gen Settings: <span class="ui">FromTextureGroup</span>. Texture Group: <span class="ui">2D Pixels (unfiltered)</span>. Under the arrow: <span class="ui">Never Stream</span> on.</li>
+  <li>Texture → <span class="ui">sRGB</span> on.</li>
+</ul>
+<p>Save. <span class="ui">2D Pixels (unfiltered)</span> gives the crisp, pixelly look the game has. If you want a smooth texture instead, pick <span class="ui">World</span>. I haven't compared the two in game.</p>
+
+<p>Then <span class="ui">File → Save All</span> and close the editor.</p>
+
+<h3 id="cook">Cook</h3>
+<p>Open Command Prompt and run this, with your own paths and skin name. It's one line:</p>
+<div class="cmd"><pre><code>"C:\Program Files\Epic Games\UE_4.27\Engine\Binaries\Win64\UE4Editor-Cmd.exe" "C:\Skins\MySkins\MySkins.uproject" -run=cook -targetplatform=WindowsNoEditor -unversioned -cooksinglepackagenorefs -map=/Game/Mods/VOTVCoop/kerfurOmega_KelSkin+/Game/Mods/VOTVCoop/tex_MySkin</code></pre></div>
+<p>It takes a minute or two. At the end it should say <code>Success - 0 error(s)</code>. A warning or two about other platforms is normal. The cooked files are in:</p>
+<pre><code>C:\Skins\MySkins\Saved\Cooked\WindowsNoEditor\MySkins\Content\Mods\VOTVCoop\
+    kerfurOmega_KelSkin.uasset
+    kerfurOmega_KelSkin.uexp
+    tex_MySkin.uasset
+    tex_MySkin.uexp</code></pre>
+<p>Keep <code>-unversioned</code>, which leaves out version info the way the game's files do, and <code>-cooksinglepackagenorefs</code>, which cooks only your two assets and not the stand-ins. If you use Git Bash instead of Command Prompt, put <code>MSYS_NO_PATHCONV=1</code> in front of the command, or Git Bash mangles the <code>/Game/...</code> paths.</p>
+
+<!-- ===================================================================== -->
+<h2 id="pak">Pak</h2>
+
+<ol>
+  <li>Make this folder tree, for example under <code>C:\Skins\pak</code>:
+<pre><code>C:\Skins\pak\MySkin\VotV\Content\Mods\VOTVCoop\</code></pre>
+  </li>
+  <li>Copy the four cooked files into it. Rename only the two mesh files, to your skin name:
+<pre><code>kerfurOmega_KelSkin.uasset  →  MySkin.uasset
+kerfurOmega_KelSkin.uexp    →  MySkin.uexp
+tex_MySkin.uasset              (unchanged)
+tex_MySkin.uexp                (unchanged)</code></pre>
+    The asset inside keeps the name <code>kerfurOmega_KelSkin</code>. Multivoid loads it as <code>/Game/Mods/VOTVCoop/MySkin.kerfurOmega_KelSkin</code>.
+  </li>
+  <li>Put <code>repak.exe</code> in <code>C:\Skins\pak</code>, open Command Prompt there and run:
+<div class="cmd"><pre><code>repak pack -m "../../../" --version V11 -p 0 --compression Zlib MySkin</code></pre></div>
+    You get <code>MySkin.pak</code> next to the folder.
+  </li>
+  <li>Check it:
+<div class="cmd"><pre><code>repak list MySkin.pak</code></pre></div>
+    It should print exactly these four lines:
+<pre><code>VotV/Content/Mods/VOTVCoop/MySkin.uasset
+VotV/Content/Mods/VOTVCoop/MySkin.uexp
+VotV/Content/Mods/VOTVCoop/tex_MySkin.uasset
+VotV/Content/Mods/VOTVCoop/tex_MySkin.uexp</code></pre>
+    <code>repak info MySkin.pak</code> should show mount point <code>../../../</code>, version V11, Zlib and 4 file entries.
+  </li>
+</ol>
+
+<h3 id="tile">The tile</h3>
+<p>The picture in the F1 → Skins list is a PNG next to the pak with the same name: <code>MySkin.png</code>. A <code>.bmp</code> works too. Multivoid scales the picture to fit its tile and keeps the aspect ratio, so any size works. I use 160 × 200 pixels, the size of Multivoid's own tiles. Without it the skin still works but has no picture in the list.</p>
+
+<h3 id="unrealpak">UnrealPak instead of repak</h3>
+<p>UE 4.27 ships its own packer, <code>Engine\Binaries\Win64\UnrealPak.exe</code>. With a response file that lists the staging folder and <code>-compress</code>, it packs the same four files, byte for byte. But it sets the mount point to the deepest shared folder (<code>../../../VotV/Content/Mods/VOTVCoop/</code>) instead of <code>../../../</code>, and it stores the smallest file uncompressed. The engine should resolve the same paths, but that's not what Multivoid's own skins look like, and I only tested repak paks. Use repak.</p>
+
+<!-- ===================================================================== -->
+<h2 id="try">Try it in game</h2>
+
+<p>The pak has to sit in a subfolder of the game's <code>Content\Paks\LogicMods</code> folder. Multivoid only looks in subfolders, never at the top level. With Thunderstore Mod Manager you don't copy anything by hand: the mod loader maps each installed package's <code>pak</code> folder to <code>LogicMods\&lt;Author&gt;-&lt;Name&gt;\</code>. The simplest way is to wrap the skin as a local mod.</p>
+
+<p>Make a zip with this inside, files at the top level of the zip, not in a folder:</p>
+<pre><code>icon.png          256 × 256
+manifest.json
+README.md         a line or two about the skin and the model's credit
+pak\MySkin.pak
+pak\MySkin.png    the 160 × 200 tile</code></pre>
+
+<p><code>manifest.json</code>:</p>
+<div class="cmd"><pre><code>{
+  "name": "MySkin",
+  "version_number": "1.0.0",
+  "website_url": "",
+  "description": "A Multivoid player skin.",
+  "dependencies": [
+    "Thunderstore-unreal_shimloader-1.1.7",
+    "Pelmentor-Multivoid-0.9.292"
+  ]
+}</code></pre></div>
+<p>Use the shimloader and Multivoid versions you have installed.</p>
+
+<ol>
+  <li>In Thunderstore Mod Manager, open your Voices of the Void profile. Multivoid has to be installed in it.</li>
+  <li><span class="ui">Settings → Profile → Import local mod</span>, pick the zip.</li>
+  <li>Start the game modded. Press <kbd>F1</kbd>, open <span class="ui">Skins</span> and pick your skin.</li>
+</ol>
+
+<p>Only the skin's name goes over the network. Every player who should see it needs the same pak installed. Players without it see the stock Kel body instead.</p>
+
+<!-- ===================================================================== -->
+<h2 id="trouble">Troubleshooting</h2>
+
+<dl class="trouble">
+  <dt>The arms are stretched or too thick</dt>
+  <dd><p>Inherit Scale wasn't set to None on every <code>fit</code> bone before the IK stretch. The stretch on the upper arm gets passed to the forearm and hand. Go back to the <code>fit</code> step, set it on all bones with <kbd>Alt</kbd> held, and redo the apply.</p>
+  <p>Arms that are longer than your model's are normal. They're Kel's arms.</p></dd>
+
+  <dt>The chin is pulled down into a long jaw or a beard shape</dt>
+  <dd><p>The lower face has neck or chest weight. Those bones stretch to Kel's length and drag the jaw with them. Do the <a href="#groups">head step</a> in the weight tidy: everything from the bottom of the chin up goes to <code>head</code> only, then smooth the edge. A longer neck on its own is normal. That's Kel's neck.</p></dd>
+
+  <dt>The hands disappear inside the coat when Kel moves</dt>
+  <dd><p>The sleeves carry weight on <code>pelvis</code>, <code>belly</code> or <code>chest</code>, so they stay with the body while the arm moves. Check those three groups in Weight Paint, paint the sleeves back to zero, then Normalize All. Also check the hem step didn't catch sleeve vertices: deselect the sleeves before you assign <code>pelvis</code>.</p></dd>
+
+  <dt>Unreal warns about the bind pose on import</dt>
+  <dd><p>"Not valid bind pose ... The relative matrices do not match" followed by "Recreating bind pose succeeded" shows up with Blender FBX files. I get it every time. It's fine as long as <span class="ui">Use T0 As Ref Pose</span> is on.</p></dd>
+
+  <dt>The skin shows up in the list for a moment, then disappears</dt>
+  <dd><p>Multivoid lists every pak it finds, then tries to load the mesh at <code>/Game/Mods/VOTVCoop/&lt;pak name&gt;.kerfurOmega_KelSkin</code> and the texture <code>tex_&lt;pak name&gt;</code>. If either fails, it hides the skin from the picker. Check:</p>
+  <ul>
+    <li>The pak name and the renamed <code>.uasset</code>/<code>.uexp</code> are spelled exactly the same, case included.</li>
+    <li>The FBX was named <code>kerfurOmega_KelSkin.fbx</code>, so the asset inside has that name.</li>
+    <li><code>repak list</code> shows the four paths starting with <code>VotV/Content/Mods/VOTVCoop/</code>, and <code>repak info</code> shows mount point <code>../../../</code>.</li>
+    <li>The texture is named <code>tex_</code> plus the pak name.</li>
+  </ul></dd>
+
+  <dt>The skin works but the tile is blank</dt>
+  <dd><p>The PNG (or BMP) has to have the same name as the pak (<code>MySkin.pak</code>, <code>MySkin.png</code>) and sit in the same folder. In the zip that's <code>pak\MySkin.png</code>. Check the case of the name and that it is a real PNG, not a renamed JPG.</p></dd>
+
+  <dt>Other players see the stock Kel body instead of my skin</dt>
+  <dd><p>They don't have the pak. Only the name is sent, so each player needs the same skin installed under the same name.</p></dd>
+
+  <dt>The skin isn't listed at all</dt>
+  <dd><p>The pak is probably at the top level of <code>LogicMods</code>, or somewhere else entirely. It has to be in a subfolder. Through Thunderstore Mod Manager that happens automatically when the pak is in the zip's <code>pak</code> folder. Also check the name only uses letters, digits, <code>_</code> and <code>-</code>, and isn't the name of a built-in skin, <code>scientists</code> or one of the four starter skins.</p></dd>
+
+  <dt>The cook finishes but there are no files</dt>
+  <dd><p>The <code>-map=</code> paths don't match the asset paths in the project. They're <code>/Game/</code> plus the folder under Content plus the asset name, no file extension, joined with <code>+</code>. In Git Bash, add <code>MSYS_NO_PATHCONV=1</code>. Also make sure you saved everything before closing the editor.</p></dd>
+
+  <dt>UnrealPak -Verify says the pak is corrupted</dt>
+  <dd><p>If you run <code>UnrealPak.exe MySkin.pak -Verify</code> on a repak pak, it reports "Index FPakEntry does not match Payload FPakEntry" for the <code>.uasset</code> files. That's a difference in how repak writes a header field. Multivoid's own skin paks give the same message, and the files extract fine. You can ignore it.</p></dd>
+
+  <dt>The feet float or sink</dt>
+  <dd><p>Redo the foot scale before applying the <code>fit</code> modifier. Aim for the soles about 2 cm under the floor. A few millimetres off isn't visible in game.</p></dd>
+</dl>
+
+<!-- ===================================================================== -->
+<h2 id="advanced">Advanced notes</h2>
+
+<h3>Keeping your model's own proportions</h3>
+<p>This guide gives every skin Kel's proportions, because the game's skeleton takes each bone's position from the animation, and the animations are Kel's. You can change that by patching the game's skeleton asset so some bones take their length from the mesh instead. I've done it, and I'm not covering it here. It means editing a cooked game file at the byte level and shipping it as a second pak. Every player needs that pak too, it affects a file every Kel-shaped mesh uses, and a game update can break it. For most skins the fit in this guide is the better deal.</p>
+
+<h3>Fingers</h3>
+<p>The fit only moves the 17 main bones. The finger bones stay where Kel has them, and your fingers follow the hand. Fitting the finger joints the same way works in theory, but I haven't tested it.</p>
+
+<!-- ===================================================================== -->
+<h2 id="commissions">Commissions</h2>
+<p>I take skin commissions. Message me on Discord: <b>forder</b>. My released skins are on my <a href="https://thunderstore.io/c/voices-of-the-void/p/forder/">Thunderstore page</a>.</p>
+
+<footer>
+  <p>Model in the screenshots: <a href="https://open3dlab.com/project/6311740b-135c-4414-b872-16caee1077bf/">Dr. Kel and Fem Kel by Gigaroni</a>.</p>
+  <p>Multivoid is made by Pelmentor. Voices of the Void is made by mrdrnose. This guide isn't affiliated with either.</p>
+  <p><code>kel_armature.blend</code> holds bone names and positions only, no mesh, texture or other game content.</p>
+</footer>
+
+</main>
+</div>
+
+<script>
+document.querySelectorAll('.cmd').forEach(function (box) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'copy';
+  b.textContent = 'Copy';
+  b.addEventListener('click', function () {
+    var text = box.querySelector('code').innerText;
+    navigator.clipboard.writeText(text).then(function () {
+      b.textContent = 'Copied';
+      setTimeout(function () { b.textContent = 'Copy'; }, 1500);
+    }, function () {
+      b.textContent = 'Select and copy';
+    });
+  });
+  box.appendChild(b);
+});
+
+document.querySelectorAll('details.menu a').forEach(function (a) {
+  a.addEventListener('click', function () { a.closest('details').open = false; });
+});
+
+(function () {
+  var links = {};
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
+  var heads = Array.prototype.filter.call(document.querySelectorAll('h2[id], h3[id]'), function (h) { return links[h.id]; });
+  if (!('IntersectionObserver' in window) || !heads.length) return;
+  var current = null;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        if (current) current.classList.remove('here');
+        current = links[e.target.id];
+        current.classList.add('here');
+      }
+    });
+  }, { rootMargin: '0px 0px -75% 0px' });
+  heads.forEach(function (h) { io.observe(h); });
+})();
+</script>
+</body>
+</html>
